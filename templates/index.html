@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CCTV AI Monitor | Gemmiz</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #f1f5f9;
+            color: #0f172a;
+            font-family: 'Segoe UI', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0 20px;
+            height: 52px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand { display: flex; align-items: center; gap: 10px; }
+
+        .logo {
+            width: 30px; height: 30px;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            border-radius: 7px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 13px; font-weight: 600; color: #fff;
+        }
+
+        .brand-name { font-size: 13px; font-weight: 600; color: #0f172a; }
+        .brand-name span { color: #6366f1; }
+
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .datetime { font-size: 11px; color: #94a3b8; }
+
+        .live-pill {
+            display: flex; align-items: center; gap: 5px;
+            background: #ede9fe; border: 1px solid #c4b5fd;
+            padding: 3px 10px; border-radius: 20px;
+            font-size: 11px; font-weight: 600; color: #6366f1;
+        }
+
+        .live-dot {
+            width: 6px; height: 6px;
+            background: #6366f1; border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 240px;
+            gap: 10px;
+            padding: 10px;
+            height: calc(100vh - 52px);
+            overflow: hidden;
+        }
+
+        .left {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-height: 0;
+        }
+
+        .video-card {
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            flex: 1;
+            position: relative;
+            min-height: 0;
+        }
+
+        .video-card img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+        }
+
+        .cam-badge {
+            position: absolute; top: 10px; left: 10px;
+            background: #ede9fe; color: #6366f1;
+            font-size: 10px; font-weight: 600;
+            padding: 3px 9px; border-radius: 5px;
+            border: 1px solid #c4b5fd;
+        }
+
+        .time-badge {
+            position: absolute; bottom: 10px; right: 10px;
+            background: rgba(255,255,255,0.9);
+            color: #64748b; font-size: 10px;
+            padding: 2px 7px; border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .fight-overlay {
+            display: none;
+            position: absolute; inset: 0;
+            border: 2px solid #ef4444;
+            border-radius: 10px;
+            pointer-events: none;
+        }
+
+        .fight-badge {
+            position: absolute; top: 10px; right: 10px;
+            background: #ef4444; color: #fff;
+            font-size: 11px; font-weight: 600;
+            padding: 4px 10px; border-radius: 5px;
+            animation: pulse 0.8s infinite;
+        }
+
+        .alert-bar {
+            display: none;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            border-radius: 8px;
+            padding: 8px 14px;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .alert-bar.show { display: flex; }
+
+        .alert-dot {
+            width: 7px; height: 7px;
+            background: #ef4444; border-radius: 50%;
+            animation: blink 0.7s infinite; flex-shrink: 0;
+        }
+
+        .alert-text { font-size: 12px; font-weight: 500; color: #ef4444; }
+        .alert-time { font-size: 10px; color: #fca5a5; margin-left: auto; }
+
+        .right {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 0;
+        }
+
+        .right::-webkit-scrollbar { width: 3px; }
+        .right::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 2px; }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .stat {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 8px 10px;
+        }
+
+        .stat-val { font-size: 22px; font-weight: 600; color: #6366f1; }
+        .stat-val.danger { color: #ef4444; }
+        .stat-val.neutral { color: #0f172a; }
+        .stat-val.success { font-size: 13px; color: #10b981; margin-top: 4px; font-weight: 600; }
+        .stat-lbl { font-size: 9px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.8px; margin-top: 2px; }
+
+        .panel {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 12px;
+            flex-shrink: 0;
+        }
+
+        .panel-title {
+            font-size: 9px; color: #94a3b8;
+            text-transform: uppercase; letter-spacing: 0.8px;
+            margin-bottom: 8px;
+            display: flex; align-items: center; gap: 5px;
+        }
+
+        .ai-status-val {
+            font-size: 20px;
+            font-weight: 700;
+            color: #10b981;
+            text-align: center;
+            transition: color 0.3s;
+        }
+
+        .ai-conf {
+            font-size: 11px;
+            color: #94a3b8;
+            text-align: center;
+            margin-top: 2px;
+        }
+
+        .info-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 11px;
+        }
+
+        .info-row:last-child { border-bottom: none; }
+        .info-key { color: #94a3b8; }
+        .info-val { color: #6366f1; font-weight: 500; }
+        .info-val.neutral { color: #0f172a; }
+
+        .log-items { max-height: 130px; overflow-y: auto; }
+        .log-items::-webkit-scrollbar { width: 3px; }
+        .log-items::-webkit-scrollbar-thumb { background: #e2e8f0; }
+
+        .log-item {
+            display: flex; align-items: flex-start; gap: 7px;
+            padding: 5px 0; border-bottom: 1px solid #f1f5f9;
+        }
+
+        .log-item:last-child { border-bottom: none; }
+
+        .log-ico {
+            width: 18px; height: 18px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 9px; flex-shrink: 0;
+        }
+
+        .log-ico.ok { background: #ede9fe; color: #6366f1; }
+        .log-ico.err { background: #fef2f2; color: #ef4444; }
+
+        .log-name { font-size: 11px; font-weight: 500; color: #0f172a; }
+        .log-name.fight { color: #ef4444; }
+        .log-time { font-size: 9px; color: #94a3b8; margin-top: 1px; }
+
+        .snap-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5px; margin-top: 6px;
+        }
+
+        .snap {
+            border-radius: 6px; overflow: hidden;
+            position: relative; border: 1px solid #e2e8f0;
+        }
+
+        .snap img {
+            width: 100%; height: 50px;
+            object-fit: cover; display: block;
+        }
+
+        .snap-lbl {
+            position: absolute; bottom: 2px; left: 3px;
+            font-size: 8px; font-weight: 600;
+            padding: 1px 4px; border-radius: 3px;
+            background: #ef444490; color: #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="brand">
+            <div class="logo">G</div>
+            <div class="brand-name"><span>Gemmiz</span> CCTV AI Monitor</div>
+        </div>
+        <div class="header-right">
+            <span class="datetime" id="datetime"></span>
+            <div class="live-pill">
+                <div class="live-dot"></div>Live
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+
+        <div class="left">
+            <div class="video-card">
+                <img src="{{ url_for('video_feed') }}" alt="Live Feed">
+                <div class="cam-badge">
+                    <i class="ti ti-circle-filled" style="font-size:6px;margin-right:3px;vertical-align:1px" aria-hidden="true"></i>
+                    CAM 01 — Live
+                </div>
+                <div class="time-badge" id="vidTime"></div>
+                <div class="fight-overlay" id="fightOverlay">
+                    <div class="fight-badge">⚠ Fight Detected</div>
+                </div>
+            </div>
+            <div class="alert-bar" id="alertBar">
+                <div class="alert-dot"></div>
+                <span class="alert-text">Fight detected — AI confidence threshold exceeded</span>
+                <span class="alert-time" id="alertTime"></span>
+            </div>
+        </div>
+
+        <div class="right">
+
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-val neutral" id="detCount">0</div>
+                    <div class="stat-lbl">Detections</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-val danger" id="altCount">0</div>
+                    <div class="stat-lbl">Alerts</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-val neutral">1</div>
+                    <div class="stat-lbl">Cameras</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-val success">Online</div>
+                    <div class="stat-lbl">Status</div>
+                </div>
+            </div>
+
+            <!-- AI Status -->
+            <div class="panel" style="text-align:center;">
+                <div class="panel-title" style="justify-content:center;">
+                    <i class="ti ti-brain" aria-hidden="true"></i> AI Status
+                </div>
+                <div class="ai-status-val" id="aiStatus">Normal</div>
+                <div class="ai-conf" id="aiConf">Confidence: 0%</div>
+            </div>
+
+            <!-- Model Info -->
+            <div class="panel">
+                <div class="panel-title">
+                    <i class="ti ti-cpu" aria-hidden="true"></i> Model info
+                </div>
+                <div class="info-row">
+                    <span class="info-key">Model</span>
+                    <span class="info-val neutral">YOLOv8n-cls</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-key">Accuracy</span>
+                    <span class="info-val">92.6% mAP50</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-key">Confidence</span>
+                    <span class="info-val neutral">85%</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-key">Classes</span>
+                    <span class="info-val neutral">Fight / Normal</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-key">Powered by</span>
+                    <span class="info-val">Gemmiz AI</span>
+                </div>
+            </div>
+
+            <!-- Event Log -->
+            <div class="panel">
+                <div class="panel-title">
+                    <i class="ti ti-timeline" aria-hidden="true"></i> Event log
+                </div>
+                <div class="log-items" id="logItems">
+                    <div class="log-item">
+                        <div class="log-ico ok">
+                            <i class="ti ti-check" aria-hidden="true"></i>
+                        </div>
+                        <div>
+                            <div class="log-name">System started</div>
+                            <div class="log-time" id="startTime"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Snapshots -->
+            <div class="panel">
+                <div class="panel-title">
+                    <i class="ti ti-camera" aria-hidden="true"></i> Recent snapshots
+                </div>
+                <div class="snap-grid" id="snapGrid">
+                    <div style="grid-column:span 2;text-align:center;font-size:10px;color:#94a3b8;padding:8px 0;">
+                        No snapshots yet
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('startTime').textContent = new Date().toLocaleTimeString();
+
+        function updateClock() {
+            const now = new Date();
+            const d = now.toLocaleDateString('en-GB', {weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+            const t = now.toLocaleTimeString();
+            document.getElementById('datetime').textContent = d + ' — ' + t;
+            document.getElementById('vidTime').textContent = t;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        let alertCount = 0;
+        let detCount = 0;
+        let fightActive = false;
+
+        setInterval(() => {
+            fetch('/detection_status')
+                .then(r => r.json())
+                .then(data => {
+                    // Update AI status
+                    const statusEl = document.getElementById('aiStatus');
+                    const confEl = document.getElementById('aiConf');
+                    statusEl.textContent = data.label || 'Normal';
+                    confEl.textContent = 'Confidence: ' + (data.confidence || 0) + '%';
+                    statusEl.style.color = data.fight_detected ? '#ef4444' : '#10b981';
+
+                    if (data.fight_detected) {
+                        if (!fightActive) {
+                            fightActive = true;
+                            alertCount++;
+                            detCount++;
+                            document.getElementById('altCount').textContent = alertCount;
+                            document.getElementById('detCount').textContent = detCount;
+                            document.getElementById('fightOverlay').style.display = 'block';
+                            document.getElementById('alertBar').classList.add('show');
+                            document.getElementById('alertTime').textContent = new Date().toLocaleTimeString();
+
+                            const log = document.getElementById('logItems');
+                            const item = document.createElement('div');
+                            item.className = 'log-item';
+                            item.innerHTML = `
+                                <div class="log-ico err"><i class="ti ti-alert-triangle" aria-hidden="true"></i></div>
+                                <div>
+                                    <div class="log-name fight">Fight detected</div>
+                                    <div class="log-time">${new Date().toLocaleTimeString()}</div>
+                                </div>`;
+                            log.prepend(item);
+                        }
+                    } else {
+                        fightActive = false;
+                        document.getElementById('fightOverlay').style.display = 'none';
+                        document.getElementById('alertBar').classList.remove('show');
+                    }
+                });
+        }, 1000);
+
+        function loadSnapshots() {
+            fetch('/snapshots')
+                .then(r => r.json())
+                .then(snaps => {
+                    const grid = document.getElementById('snapGrid');
+                    if (snaps.length === 0) return;
+                    grid.innerHTML = '';
+                    snaps.forEach(s => {
+                        const div = document.createElement('div');
+                        div.className = 'snap';
+                        div.innerHTML = `<img src="${s}?t=${Date.now()}" alt="snapshot"><div class="snap-lbl">Fight</div>`;
+                        grid.appendChild(div);
+                    });
+                });
+        }
+
+        function loadEvents() {
+            fetch('/events')
+                .then(r => r.json())
+                .then(events => {
+                    if (events.length === 0) return;
+                    const log = document.getElementById('logItems');
+                    log.innerHTML = '';
+                    events.forEach(e => {
+                        const isFight = e[1] === 'Fight Detected';
+                        const item = document.createElement('div');
+                        item.className = 'log-item';
+                        item.innerHTML = `
+                            <div class="log-ico ${isFight ? 'err' : 'ok'}">
+                                <i class="ti ti-${isFight ? 'alert-triangle' : 'check'}" aria-hidden="true"></i>
+                            </div>
+                            <div>
+                                <div class="log-name ${isFight ? 'fight' : ''}">${e[1]}</div>
+                                <div class="log-time">${e[2]}</div>
+                            </div>`;
+                        log.appendChild(item);
+                    });
+                });
+        }
+
+        setInterval(loadSnapshots, 5000);
+        setInterval(loadEvents, 5000);
+        loadSnapshots();
+        loadEvents();
+    </script>
+
+</body>
+</html>git add .
